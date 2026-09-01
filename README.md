@@ -114,6 +114,33 @@ $F_{\Delta H}$, the running cumulative-best individual, and the loss.
 Final model checkpoints are written under `final_*` directories and
 loaded by the downstream alignment stages.
 
+## Controls and yield analysis
+
+Three additional experiment groups support the revised manuscript. All of them
+reuse the OpenMC settings, fitness definition, and 2,000-evaluation budget of
+the main campaigns.
+
+- `oracle/` -- **Informed random-search oracle.** Uniform random sampling with
+  the Gd inventory drawn from the interval [20, 40], the region occupied by
+  the aligned policies, evaluated under identical OpenMC settings and budget.
+  Five independent sampling seeds
+  (`python oracle/run_informed_random_search.py`); best-of-budget composite
+  fitness across seeds gives the oracle value in the manuscript.
+- `no_penalty_control/` -- **No-penalty control run.** The single-target
+  online DPO procedure with the criticality penalty removed, so the reward
+  reduces to the peaking-only term; everything else is identical to
+  `training/dpo/single_target/single_dpo.py`
+  (`python no_penalty_control/no_penalty_dpo.py --seed 0`).
+- `generation_yield/` -- **Generation yield and constraint satisfaction.**
+  Samples 1,000 generations per aligned checkpoint, measures complete-lattice
+  fraction and pre-correction guide-tube violations, and evaluates a fixed
+  subsample with OpenMC for the feasible fraction
+  (`python generation_yield/run_generation_yield.py`).
+- `analysis/aggregate_results.py` -- recomputes the headline numbers reported
+  in the manuscript (fitness decomposition, matched-GA comparison and
+  Mann-Whitney tests, oracle statistics, control convergence) from the raw
+  CSVs in the archival data package.
+
 ## Citation
 
 A manuscript describing this work is in preparation.  Citation details

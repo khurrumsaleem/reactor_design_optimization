@@ -1,0 +1,20 @@
+{
+  "run_name": "registered_single",
+  "seeds": [0, 1, 2, 3, 4],
+  "targets": [90.0],
+  "objective": "target_match",
+  "hidden_size": 48,
+  "cpt_epochs": 5,
+  "sft_epochs": 10,
+  "examples_per_task_target": 8,
+  "batch_size": 128,
+  "supervised_learning_rate": 0.001,
+  "online_learning_rate": 0.0003,
+  "dpo_steps": 1000,
+  "grpo_steps": 500,
+  "dpo_beta": 0.01,
+  "grpo_group_size": 4,
+  "checkpoint_every": 25,
+  "temperature": 1.0,
+  "initialization_arms": ["cpt_sft", "sft_only"]
+}

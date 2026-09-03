@@ -1,17 +1,18 @@
 # ReactorGen
 
-**Toward an agentic foundation model for nuclear reactor core design via
-emergent physical AI.**
+**Agentic physics-adjudicated constraint discovery in nuclear reactor core
+design.**
 
 ReactorGen couples a compact pretrained language model (Gemma 3, 270M
 parameters) with the OpenMC Monte Carlo neutron-transport simulator in a
-closed perception-reasoning-action loop, learning to generate
-17 x 17 PWR fuel-assembly layouts that satisfy multi-objective safety
-constraints ($k_\text{eff}$, $F_q$, $F_{\Delta H}$).  During preference
-alignment with either DPO or GRPO, the model autonomously expands the
-gadolinium-absorber inventory beyond the training distribution---a
-physics-consistent out-of-distribution behaviour we term *emergent
-constraint relaxation*.
+closed generate-evaluate-update loop, learning to generate
+17 x 17 PWR fuel-assembly layouts that satisfy multi-objective neutronic
+targets ($k_\text{eff}$, $F_q$, $F_{\Delta H}$).  Trained exclusively on
+16-rod lattices, and aligned with either DPO or GRPO against live OpenMC
+feedback with no novelty, diversity, or inventory term in the reward, the
+policy shifts the gadolinium-absorber inventory to 28--35 rods, a region
+absent from its training corpus---a measurable, reward-contingent event we
+term *physics-adjudicated constraint discovery*.
 
 This repository contains the full training, evaluation, and baseline
 pipeline used to produce the results reported in our manuscript.  All
@@ -21,7 +22,7 @@ VRAM) with CPU fallback.
 ## Repository layout
 
 ```
-data_generation/              OpenMC dataset generation (100K low-fi + 10K hi-fi)
+data_generation/              OpenMC corpus generation (10K OpenMC-evaluated lattices)
 training/base/cpt/            Stage 1: Continued Pre-Training (full fine-tuning)
 training/base/sft/            Stage 2: Supervised Fine-Tuning (full fine-tuning)
 training/dpo/single_target/   Stage 3a: DPO with fixed k_eff target
@@ -32,7 +33,14 @@ only_sft/                     Ablation: same alignment without CPT pre-training
 ga/                           Genetic-algorithm baselines (constrained / unconstrained)
 nuscale/                      NuScale standard-design references
 eval_prompt_sensitivity/      Prompt-controllability evaluation across all checkpoints
-plot/                         Figure-generation scripts
+plot/                         Legacy single-run figure scripts
+figures/                      Manuscript figures (Figs. 2-7, Extended Data) from the archival data
+oracle/                       Informed random-search attribution control
+no_penalty_control/           DPO with the criticality penalty removed
+generation_yield/             Raw generation validity and constraint satisfaction
+analysis/aggregate_results.py Recomputes every headline number from the archived CSVs
+analysis/reevaluation/        2e7-history OpenMC re-evaluation, bootstrap and CI audits
+empirical/                    Buchwald-Hartwig replication on measured reaction yields
 run_all_script/               Master orchestrator (5-seed reproducibility sweep)
 ```
 
@@ -82,8 +90,8 @@ python run_all_script/run_all_script.py
 
 This sequentially executes (with two-task parallelism by default):
 
-1. Dataset generation -- 100K low-fidelity + 10K high-fidelity samples
-   (~80 hours on the reference hardware; one-time cost).
+1. Corpus generation -- 10,000 OpenMC-evaluated lattices
+   (~70 hours on the reference hardware; one-time cost).
 2. CPT and SFT stages on each of five random seeds.
 3. DPO single, DPO multi, GRPO single, GRPO multi alignment for both
    CPT+SFT and SFT-only base checkpoints (twenty 1000-step runs total).
@@ -141,10 +149,28 @@ the main campaigns.
   Mann-Whitney tests, oracle statistics, control convergence) from the raw
   CSVs in the archival data package.
 
+## Re-evaluation, empirical replication, and figures
+
+- `analysis/reevaluation/` -- re-evaluates the ten selected layouts with
+  2 x 10^7 active histories per layout, recomputes every trajectory confidence
+  band, and recomputes the prompt-steerability slopes with 10,000 bootstrap
+  resamples (`python analysis/reevaluation/openmc_high_stat.py --selection all-per-seed`,
+  `python analysis/reevaluation/trajectory_ci.py`,
+  `python analysis/reevaluation/steerability_bootstrap.py`).
+- `empirical/` -- repeats the CPT/SFT/DPO/GRPO protocol with a small
+  categorical policy on the measured Buchwald-Hartwig reaction-yield table of
+  Ahneman et al. (Science 2018); the reward is a lookup of measured yields.
+  The data table is not redistributed; `empirical/data/SOURCE.md` records its
+  origin and checksum (`cd empirical && python scripts/run_full_pipeline.py`).
+- `figures/` -- regenerates all manuscript figures from the archival data
+  package (`DATA_ROOT=/path/to/data python figures/run_all.py`).
+
 ## Citation
 
-A manuscript describing this work is in preparation.  Citation details
-(preprint and journal references) will be added here once available.
+Lee, Y. P., Roy, S., Chakraborty, S. & Alam, S. B. ReactorGen: Agentic
+Physics-Adjudicated Constraint Discovery in Nuclear Reactor Core Design
+(manuscript under review). Data and code archive:
+https://doi.org/10.5281/zenodo.22230862.
 
 ## Contact
 

@@ -1,84 +1,121 @@
-"""Fig. 4 | Objective-dependent adaptation and attribution of the gain.
+"""Fig. 4 (manuscript Fig. 3, label fig:controls) | Objective-dependent
+adaptation and fixed-search controls, five seeds throughout.
 
-a  Gd inventory of the chosen design (25-step rolling mean) under the full
-   objective (DPO, 5 seeds) and with the criticality penalty removed (1 run).
-b  per-seed best composite fitness of fixed-inventory GA, unconstrained GA,
-   informed random search supplied with the [20, 40] window, DPO and GRPO.
-c  criticality error and  d  peaking-only fitness for the three methods that
-   reach the target region.  Panels b-d absorb the former oracle table.
+a  chosen-design Gd inventory during DPO alignment (25-step rolling mean):
+   full objective vs criticality penalty removed; thin = seeds, thick = mean.
+b  matched seeds: final-100-step mean inventory under both objectives.
+c-e best-of-budget composite fitness, criticality error and peaking-only
+   fitness for GA (Gd = 16), GA (free), uninformed random search (0-264),
+   informed random search (20-40), DPO and GRPO.
+f  objective-removal statistics per seed.   g  best-of-budget metrics table.
 """
 from __future__ import annotations
 import sys
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import ScalarFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _data as D
-from _style import (C, LABEL, WIDTH_DOUBLE, apply_style, band, ci_proxy, dots_with_mean,
-                    panel_label, refline, rolling_mean, save)
+from _style import (C, apply_style, dots_with_mean, mean_sd, panel_title, rolling_mean, save, table_panel)
 
 OUT = Path(__file__).resolve().parent / "fig4_controls"
 ROLL = 25
 
 
+def best(dfs, dpo=False):
+    out = []
+    for d in dfs:
+        pre = "chosen_" if dpo else ""
+        b = d.loc[d[pre + "fitness"].idxmin()]
+        out.append({"fit": b[pre + "fitness"], "error": abs(b[pre + "k_eff"] - 1.05) * 1e5,
+                    "peak": 0.6 * b[pre + "fq"] + 0.4 * b[pre + "fdh"]})
+    return out
+
+
 def main():
     apply_style()
-    fig = plt.figure(figsize=(WIDTH_DOUBLE, 5.3))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1.0, 1.25], hspace=0.6, wspace=0.35)
-    a = fig.add_subplot(gs[0, 0]); b = fig.add_subplot(gs[0, 1])
-    c = fig.add_subplot(gs[1, 0]); d = fig.add_subplot(gs[1, 1])
+    plt.rcParams.update({"savefig.bbox": None, "font.size": 7.5})
+    full, no = D.dpo_single(), D.no_penalty_all()
+    grpo, ga, ga16 = D.grpo_single(), D.ga(False), D.ga(True)
+    urs, irs = D.uninformed_search(), D.informed_search()
+    for d in full + no:
+        assert len(d) == 1000 and d.simulation_count.iloc[-1] == 2000
+    for d in grpo + ga + ga16 + urs + irs:
+        assert len(d) == 2000
+    assert all(len(v) == 5 for v in (full, no, grpo, ga, ga16, urs, irs)), "five seeds required"
+    recs = {"GA16": best(ga16), "GA": best(ga), "URS": best(urs), "RS": best(irs),
+            "DPO": best(full, True), "GRPO": best(grpo)}
 
-    # ---- a: inventory trajectories, full objective vs no penalty
-    full = [D.dpo_steps(df) for df in D.dpo_single()]
-    xs = [s["x"].to_numpy() for s in full]
-    ys = [rolling_mean(s["step_gd"].to_numpy(), ROLL) for s in full]
-    x, m = D.align(xs, ys)
-    band(a, x, m, color=C["DPO"], label="full objective (DPO, 5 seeds)")
-    npn = D.no_penalty()
-    a.plot(npn["simulation_count"], rolling_mean(npn["chosen_g_count"].to_numpy(), ROLL),
-           color=C["NOPEN"], linewidth=1.2, linestyle="-", label="criticality penalty removed (1 run)")
-    refline(a, 16, "training inventory = 16", va="top", x_text=0.98)
-    a.set_xlabel("OpenMC evaluations"); a.set_ylabel(f"Gd inventory of chosen design\n({ROLL}-step rolling mean, rods)")
-    a.set_xlim(0, 2000); a.set_ylim(-1, 45)
-    a.annotate("↑ suppress excess reactivity", xy=(1500, 30), fontsize=6.3, color=C["DPO"], ha="center")
-    a.annotate("↓ flatten power only", xy=(1500, 3.2), fontsize=6.3, color=C["NOPEN"], ha="center")
-    a.legend(loc="upper left", bbox_to_anchor=(0.0, 1.03), fontsize=6.0)
+    fig = plt.figure(figsize=(7.2, 8.25))
+    g = fig.add_gridspec(4, 6, height_ratios=[2.1, 1.65, 1.32, 1.25], left=.09, right=.98, top=.96,
+                         bottom=.065, hspace=.60, wspace=1.1)
+    a, b = fig.add_subplot(g[0, :3]), fig.add_subplot(g[0, 3:])
+    axes = [fig.add_subplot(g[1, i:i + 2]) for i in (0, 2, 4)]
 
-    # ---- b-d: attribution
-    recs = {
-        "GA16": D.best_records([D.ga_steps(df) for df in D.ga(True)]),
-        "GA": D.best_records([D.ga_steps(df) for df in D.ga(False)]),
-        "RS": D.informed_best_records(),
-        "DPO": D.best_records([D.dpo_steps(df) for df in D.dpo_single()]),
-        "GRPO": D.best_records([D.grpo_steps(df) for df in D.grpo_single()]),
-    }
-    keys = ["GA16", "GA", "RS", "DPO", "GRPO"]
-    xt = np.arange(len(keys))
-    labels = ["GA\nGd = 16", "GA\nfree", "Informed\nrandom\nsearch", "DPO", "GRPO"]
-    source = ["prescribed", "unguided\nmutation", "supplied\npost hoc", "identified\nby policy", "identified\nby policy"]
-    for xi, k in zip(xt, keys):
-        dots_with_mean(b, xi, [r["fit"] for r in recs[k]], color=C[k])
-    b.set_yscale("log"); b.set_ylim(1.3, 16)
-    b.set_yticks([1.5, 2, 3, 5, 10]); b.yaxis.set_major_formatter(FormatStrFormatter("%g"))
-    b.set_ylabel("Best composite fitness")
-    b.set_xticks(xt); b.set_xticklabels(labels); b.set_xlim(-0.6, 4.6)
-    for xi, s in zip(xt, source):
-        b.text(xi, -0.36, s, transform=b.get_xaxis_transform(), ha="center", va="top", fontsize=5.6, color="#666666", style="italic")
-    b.text(-0.55, -0.36, "window\nsource:", transform=b.get_xaxis_transform(), ha="right", va="top", fontsize=5.6, color="#666666", style="italic")
+    for ds, color, label in ((full, C["DPO"], "Full objective"), (no, C["NOPEN"], "No criticality penalty")):
+        ys = np.array([rolling_mean(d.chosen_g_count, ROLL) for d in ds])
+        x = ds[0].simulation_count.to_numpy()
+        for y in ys:
+            a.plot(x, y, color=color, alpha=.22, lw=.65)
+        a.plot(x, ys.mean(axis=0), color=color, lw=1.6, label=label)
+    a.axhline(16, color="#888", ls=":", lw=.8)
+    a.set(xlim=(0, 2000), ylim=(0, None), xlabel="OpenMC evaluations",
+          ylabel=f"Chosen-design Gd inventory\n({ROLL}-step rolling mean)")
+    a.legend(fontsize=6.5, loc="upper left")
+    panel_title(a, "a", "Objective-dependent inventory trajectories")
 
-    keys3 = ["RS", "DPO", "GRPO"]; xt3 = np.arange(3); lab3 = ["Informed\nrandom search", "DPO", "GRPO"]
-    for xi, k in zip(xt3, keys3):
-        dots_with_mean(c, xi, [D.dk_pcm(r["k"]) for r in recs[k]], color=C[k])
-        dots_with_mean(d, xi, [D.peaking_only(r["fq"], r["fdh"]) for r in recs[k]], color=C[k])
-    c.set_yscale("log"); c.set_ylim(3, 1000); refline(c, 150, r"online $\sigma_k$ ≈ 150 pcm", va="bottom", x_text=0.98)
-    c.set_ylabel(r"$|k_{\mathrm{eff}} - 1.05|$ (pcm)")
-    d.set_ylabel(r"Peaking-only fitness  $0.6F_q + 0.4F_{\Delta H}$"); d.set_ylim(1.45, 1.80)
-    for ax in (c, d):
-        ax.set_xticks(xt3); ax.set_xticklabels(lab3); ax.set_xlim(-0.6, 2.6)
-    for ax, L, xo in ((a, "a", -0.17), (b, "b", -0.22), (c, "c", -0.17), (d, "d", -0.22)):
-        panel_label(ax, L, x=xo)
+    fv = np.array([d.chosen_g_count.tail(100).mean() for d in full])
+    nv = np.array([d.chosen_g_count.tail(100).mean() for d in no])
+    for s, (v, w) in enumerate(zip(fv, nv)):
+        off = (s - 2) * .06
+        b.plot([off, 1 + off], [v, w], c="#B7B7B7", lw=.8, zorder=1)
+        b.scatter([off, 1 + off], [v, w], c=[C["DPO"], C["NOPEN"]], s=23, zorder=3)
+        b.annotate(str(s), (off, v), xytext=(-4, 5), textcoords="offset points", fontsize=6.5)
+        b.annotate(str(s), (1 + off, w), xytext=(-2, 5), textcoords="offset points", fontsize=6.5)
+    b.set(xticks=[0, 1], xticklabels=["Full objective", "No penalty"], xlim=(-.35, 1.35), ylim=(-4, 65),
+          ylabel="Mean Gd inventory\n(final 100 steps)")
+    panel_title(b, "b", "Matched seeds (labels: seed ID)")
+
+    keys = list(recs)
+    labs = ["GA\n16 Gd", "GA\nfree", "U-rand.", "I-rand.", "DPO", "GRPO"]
+    spec = [("fit", "c", "Composite objective", "Best composite fitness"),
+            ("error", "d", "Multiplication-factor error", r"$|k_{\mathrm{eff}}-1.05|$ (pcm)"),
+            ("peak", "e", "Power peaking", "Peaking-only fitness")]
+    for ax, (metric, letter, title, ylabel) in zip(axes, spec):
+        ks = keys if metric == "fit" else keys[1:]
+        ls = labs if metric == "fit" else labs[1:]
+        for i, k in enumerate(ks):
+            dots_with_mean(ax, i, [r[metric] for r in recs[k]], color=C[k], ms=3, jitter=.08, mean_width=.20)
+        ax.set(xticks=range(len(ks)), xticklabels=ls, xlim=(-.55, len(ks) - .45), ylabel=ylabel)
+        ax.tick_params(axis="x", labelsize=5.7)
+        if metric == "fit":
+            ax.set_yscale("log"); ax.set_ylim(1.3, 15); ax.set_yticks([1.5, 2, 5, 10])
+            ax.yaxis.set_major_formatter(ScalarFormatter()); ax.minorticks_off()
+        elif metric == "error":
+            ax.set_yscale("log"); ax.set_ylim(2, 650); ax.set_yticks([10, 100, 500])
+            ax.yaxis.set_major_formatter(ScalarFormatter()); ax.axhline(150, color="#999", ls=":", lw=.7)
+        else:
+            ax.set_ylim(1.50, 1.82)
+        panel_title(ax, letter, title)
+
+    peak100 = [(0.6 * d.chosen_fq + 0.4 * d.chosen_fdh).tail(100).mean() for d in no]
+    peak_last = [0.6 * d.chosen_fq.iloc[-1] + 0.4 * d.chosen_fdh.iloc[-1] for d in no]
+    peak_min = [d.chosen_fitness.min() for d in no]
+    rows = [[str(s), f"{fv[s]:.2f}", f"{nv[s]:.2f}", f"{peak100[s]:.4f}", f"{peak_last[s]:.4f}", f"{peak_min[s]:.4f}"]
+            for s in range(5)]
+    rows.append(["Mean ± SD", mean_sd(fv), mean_sd(nv), mean_sd(peak100, 4), mean_sd(peak_last, 4), mean_sd(peak_min, 4)])
+    table_panel(fig.add_subplot(g[2, :]), "f", "Objective-removal results (five seeds)", rows,
+                ["Seed", "Full: Gd\nfinal 100", "No penalty: Gd\nfinal 100", "No penalty: peak\nfinal 100",
+                 "No penalty: peak\nfinal step", "No penalty: peak\nrun minimum"],
+                widths=[.12, .16, .17, .19, .18, .18], fontsize=6.8)
+    names = ["GA (16 Gd)", "GA (free inventory)", "Random (0–264)", "Random (20–40)", "DPO", "GRPO"]
+    rows = [[n, mean_sd([r["fit"] for r in recs[k]], 3), mean_sd([r["error"] for r in recs[k]], 1),
+             mean_sd([r["peak"] for r in recs[k]], 3)] for k, n in zip(keys, names)]
+    table_panel(fig.add_subplot(g[3, :]), "g", "Best-of-budget design metrics (mean ± SD across five seeds)", rows,
+                ["Method", "Composite fitness", "Error (pcm)", "Peaking-only fitness"], widths=[.31, .23, .23, .23])
+    fig.text(.09, .018, "a: thin lines, individual seeds; thick lines, means.  c–e: seed points, mean bars and ±1 SD.\n"
+             "2,000 evaluations per run. U-rand.: uniform Gd 0–264; I-rand.: uniform Gd 20–40.", fontsize=6.6)
     save(fig, OUT)
 
 

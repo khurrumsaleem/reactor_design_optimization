@@ -24,3 +24,11 @@ checkpoint-*/
 
 # OpenMC scratch
 *.h5
+
+# Run-time artefacts of the control / depletion campaigns
+checkpoints/
+*.lock
+*.tmp
+depletion/chain_casl_pwr.xml
+depletion/results/
+*.xml

@@ -10,8 +10,14 @@ data/
   alignment/              CPT+SFT alignment trajectories (DPO/GRPO, single/multi, 5 seeds)
   alignment_sft_only/     SFT-only alignment trajectories (CPT ablation)
   baselines/              GA trajectories and NuScale-type references
-  oracle/                 informed random search, 5 sampling seeds
-  no_penalty_control/     no-penalty DPO control trajectory
+  oracle/                 informed random search (inventory uniform on [20, 40]) and
+                          uninformed full-space random search (inventory uniform on 0..264),
+                          5 sampling seeds each
+  no_penalty_control/     no-penalty DPO control trajectories, 5 seeds
+  depletion/              per-layout depletion outputs (trajectory.csv, complete.json) for
+                          DPO, GRPO, GA, REF16, REF24, plus selected_layouts.json
+  analysis/               first_passage_per_seed.csv (analysis/first_passage.py) and the
+                          control summaries (analysis/summarize_controls.py)
   prompt_sensitivity/     steerability sweep (100 samples x 7 targets x 10 checkpoints)
   reevaluation/           2e7-history OpenMC re-evaluation, bootstrap and CI audits
   empirical/              Buchwald-Hartwig replication outputs
@@ -74,6 +80,33 @@ def nuscale() -> pd.DataFrame:
 
 def no_penalty() -> pd.DataFrame:
     return pd.read_csv(DATA_ROOT / "no_penalty_control/no_penalty_dpo_seed0_results.csv")
+
+
+def no_penalty_all() -> list[pd.DataFrame]:
+    """Five matched-seed no-penalty control runs."""
+    return _seeds(str(DATA_ROOT / "no_penalty_control/no_penalty_dpo_seed{seed}_results.csv"))
+
+
+def uninformed_search() -> list[pd.DataFrame]:
+    """Uninformed full-space random search, inventory uniform on 0..264."""
+    return _seeds(str(DATA_ROOT / "oracle/uninformed_random_seed{seed}_results.csv"))
+
+
+def first_passage() -> pd.DataFrame:
+    return pd.read_csv(DATA_ROOT / "analysis/first_passage_per_seed.csv")
+
+
+DEPLETION_CASES = ("DPO", "GRPO", "GA", "REF16", "REF24")
+
+
+def depletion_trajectory(case: str) -> pd.DataFrame:
+    return pd.read_csv(DATA_ROOT / f"depletion/{case}/trajectory.csv")
+
+
+def depletion_summary(case: str) -> dict:
+    import json
+    with open(DATA_ROOT / f"depletion/{case}/complete.json") as fh:
+        return json.load(fh)
 
 
 def informed_search() -> list[pd.DataFrame]:
@@ -192,6 +225,16 @@ def best_records(step_dfs: list[pd.DataFrame]) -> list[dict]:
 def informed_best_records() -> list[dict]:
     recs = []
     for d in informed_search():
+        i = int(d["fitness"].idxmin())
+        r = d.loc[i]
+        recs.append(dict(fit=float(r["fitness"]), k=float(r["k_eff"]), gd=int(r["g_count"]),
+                         fq=float(r["fq"]), fdh=float(r["fdh"]), grid=str(r["grid"])))
+    return recs
+
+
+def uninformed_best_records() -> list[dict]:
+    recs = []
+    for d in uninformed_search():
         i = int(d["fitness"].idxmin())
         r = d.loc[i]
         recs.append(dict(fit=float(r["fitness"]), k=float(r["k_eff"]), gd=int(r["g_count"]),

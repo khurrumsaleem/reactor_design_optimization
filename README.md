@@ -35,10 +35,13 @@ nuscale/                      NuScale standard-design references
 eval_prompt_sensitivity/      Prompt-controllability evaluation across all checkpoints
 plot/                         Legacy single-run figure scripts
 figures/                      Manuscript figures (Figs. 2-7, Extended Data) from the archival data
-oracle/                       Informed random-search attribution control
-no_penalty_control/           DPO with the criticality penalty removed
+oracle/                       Informed (Gd 20-40) and uninformed (Gd 0-264) random-search controls
+no_penalty_control/           DPO with the criticality penalty removed (five matched seeds, resumable)
+depletion/                    Pin-wise depletion of the selected layouts to 50 MWd/kgHM
 generation_yield/             Raw generation validity and constraint satisfaction
 analysis/aggregate_results.py Recomputes every headline number from the archived CSVs
+analysis/first_passage.py     Inventory first passage, cumulative-best trajectories, layout selection
+analysis/summarize_controls.py Seed-level control summaries and exact tests
 analysis/reevaluation/        2e7-history OpenMC re-evaluation, bootstrap and CI audits
 empirical/                    Buchwald-Hartwig replication on measured reaction yields
 run_all_script/               Master orchestrator (5-seed reproducibility sweep)
@@ -48,6 +51,11 @@ run_all_script/               Master orchestrator (5-seed reproducibility sweep)
 
 - **GPU**: NVIDIA RTX 3070 (8 GB VRAM) or comparable.  Larger GPUs reduce
   the need for gradient accumulation but the codebase runs as-is on 8 GB.
+  Every script selects `cuda` when available and falls back to CPU.  (The
+  supplemental controls reported in the manuscript -- no-penalty seeds 1-4,
+  uninformed random search, generation yield and depletion -- were run on an
+  Apple-silicon workstation with the same code paths; only the device string
+  differs.)
 - **CPU / RAM**: any modern x86-64 desktop is sufficient for the OpenMC
   simulations that dominate wall-clock time during DPO / GRPO and dataset
   generation.  Tested on Intel Core i5-12400F (6 cores) with 32 GB RAM.
@@ -134,11 +142,33 @@ the main campaigns.
   Five independent sampling seeds
   (`python oracle/run_informed_random_search.py`); best-of-budget composite
   fitness across seeds gives the oracle value in the manuscript.
-- `no_penalty_control/` -- **No-penalty control run.** The single-target
-  online DPO procedure with the criticality penalty removed, so the reward
-  reduces to the peaking-only term; everything else is identical to
-  `training/dpo/single_target/single_dpo.py`
-  (`python no_penalty_control/no_penalty_dpo.py --seed 0`).
+- `oracle/run_uninformed_random_search.py` -- **Uninformed full-space random
+  search.** Gd inventory uniform on the integers 0-264 and positions uniform
+  over the 264 non-guide-tube sites, five seeds x 2,000 evaluations, no
+  productive window supplied. Deterministic per-sample OpenMC seeds; resumable.
+- `no_penalty_control/` -- **No-penalty control run, five matched seeds.** The
+  single-target online DPO procedure with the criticality penalty removed, so
+  the reward reduces to the peaking-only term; everything else is identical to
+  `training/dpo/single_target/single_dpo.py`. `no_penalty_dpo.py --seed K` is
+  the original single-process script; `run_no_penalty_resumable.py --seed K`
+  runs the same algorithm with atomic checkpoints (model, optimizer and all
+  RNG states every 10 steps), strict OpenMC failure handling and two isolated
+  evaluator processes (`oracle_worker.py`), and was used for seeds 1-4.
+- `depletion/` -- **Depletion assessment of selected layouts.** Pin-wise
+  CE/CM depletion of the best DPO, GRPO and unconstrained-GA layouts and the
+  symmetric 16-Gd / 24-Gd references to 50 MWd/kgHM at 35 W/gHM with the
+  228-nuclide simplified CASL PWR chain, followed by an endpoint transport with
+  the remaining Gd removed (residual Gd effect). `python depletion/fetch_chain.py`
+  downloads and checksums the chain; `python depletion/run_depletion.py --case DPO`
+  runs one layout (resumable at the last completed burnup node). Layouts come
+  from `selected_layouts.json` written by `analysis/first_passage.py`.
+- `analysis/first_passage.py` -- first candidate with >= 20 Gd rods per run
+  (batch-bounded), cumulative-best inventory monotonicity, and the
+  best-of-five-seeds layout selection used by the depletion study.
+- `analysis/summarize_controls.py` -- seed-level statistics for the five
+  no-penalty runs (paired exact sign-flip test against the matched
+  full-objective runs), the uninformed search (exact rank-sum tests against
+  DPO / GRPO, target-region candidate counts) and the depletion outputs.
 - `generation_yield/` -- **Generation yield and constraint satisfaction.**
   Samples 1,000 generations per aligned checkpoint, measures complete-lattice
   fraction and pre-correction guide-tube violations, and evaluates a fixed
@@ -163,13 +193,31 @@ the main campaigns.
   The data table is not redistributed; `empirical/data/SOURCE.md` records its
   origin and checksum (`cd empirical && python scripts/run_full_pipeline.py`).
 - `figures/` -- regenerates all manuscript figures from the archival data
-  package (`DATA_ROOT=/path/to/data python figures/run_all.py`).
+  package (`DATA_ROOT=/path/to/data python figures/run_all.py`); see
+  `figures/README.md` for the script-to-figure mapping.
+
+## Archival data layout expected by the analysis and figure scripts
+
+```
+data/
+  corpus/               reactor_10k_final.csv
+  alignment/            DPO / GRPO single and multi-target trajectories, 5 seeds
+  alignment_sft_only/   same, SFT-only initialization
+  baselines/            ga_baseline_single[_gd16]_seed{K}_results.csv, nuscale_baseline_results.csv
+  oracle/               informed_random_search_seed{K}_results.csv, uninformed_random_seed{K}_results.csv
+  no_penalty_control/   no_penalty_dpo_seed{K}_results.csv (K = 0..4)
+  depletion/            {DPO,GRPO,GA,REF16,REF24}/trajectory.csv + complete.json, selected_layouts.json
+  analysis/             first_passage_per_seed.csv and the control summaries (regenerable)
+  prompt_sensitivity/   prompt_sensitivity_results.csv
+  reevaluation/         2e7-history re-evaluation, trajectory CI, steerability bootstrap
+  empirical/            Buchwald-Hartwig replication outputs
+```
 
 ## Citation
 
 Lee, Y. P., Roy, S., Chakraborty, S. & Alam, S. B. ReactorGen: Agentic
-Physics-Adjudicated Constraint Discovery in Nuclear Reactor Core Design
-(manuscript under review). Data and code archive:
+Physics-Adjudicated Constraint Discovery (manuscript submitted to Nature
+Machine Intelligence, 2026). Data and code archive:
 https://doi.org/10.5281/zenodo.22230862.
 
 ## Contact

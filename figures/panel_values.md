@@ -8,7 +8,8 @@ Former Table 'decomposition' + 'oracle' + 'per-design metrics' -> Fig. 3 g-i, Fi
 | 24-Gd symmetric reference | 24.0 | 5.126 | 3475 | 1.651 | 1.91 | 1.26 | 3b, 3g-i (dotted) |
 | GA (Gd = 16) | 16.0 ± 0.0 | 12.377 ± 0.055 | 10806 ± 88 | 1.572 ± 0.043 | 1.81 ± 0.09 | 1.21 ± 0.05 | 3c, 3g-i, 4b |
 | GA (unconstrained) | 30.0 ± 0.7 | 1.895 ± 0.129 | 181 ± 138 | 1.714 ± 0.043 | 2.01 ± 0.09 | 1.26 ± 0.05 | 3d, 3g-i, 4b |
-| Informed random search [20, 40] | 29.4 ± 0.5 | 1.653 ± 0.037 | 35 ± 13 | 1.618 ± 0.041 | 1.87 ± 0.07 | 1.24 ± 0.05 | 4b-d |
+| Informed random search [20, 40] | 29.4 ± 0.5 | 1.653 ± 0.037 | 35 ± 13 | 1.618 ± 0.041 | 1.87 ± 0.07 | 1.24 ± 0.05 | 4c-e, 4g |
+| Uninformed random search [0, 264] | 29.4 ± 1.1 | 1.767 ± 0.045 | 55 ± 36 | 1.712 ± 0.025 | 2.02 ± 0.06 | 1.26 ± 0.04 | 4c-e, 4g, ED3b, ED3f |
 | DPO (CPT + SFT) | 31.0 ± 2.9 | 1.654 ± 0.042 | 44 ± 36 | 1.610 ± 0.051 | 1.88 ± 0.11 | 1.20 ± 0.06 | 3e, 3g-i, 4b-d, 5e-f |
 | GRPO (CPT + SFT) | 28.8 ± 0.4 | 1.655 ± 0.051 | 40 ± 28 | 1.616 ± 0.037 | 1.87 ± 0.05 | 1.24 ± 0.03 | 3f, 3g-i, 4b-d, 5e-f |
 | DPO (SFT only) | 31.2 ± 1.9 | 1.715 ± 0.108 | 37 ± 62 | 1.678 ± 0.047 | 1.95 ± 0.08 | 1.28 ± 0.05 | 5e-f |
@@ -21,10 +22,26 @@ Former Table 'decomposition' + 'oracle' + 'per-design metrics' -> Fig. 3 g-i, Fi
 | DPO | 44 ± 36 | 102 ± 71 | 20 ± 1 |
 | GRPO | 40 ± 28 | 139 ± 130 | 20 ± 1 |
 
-## No-penalty control (Fig. 4a)
+## No-penalty control, five matched seeds (Fig. 4a-b, f)
 
-- mean chosen-design Gd over final 100 steps: 0.0 ± 0.0
-- minimum peaking-only fitness in run: 1.4561
+| Seed | Full objective: Gd final 100 | No penalty: Gd final 100 | No penalty: min peaking-only |
+|---|---|---|---|
+| 0 | 31.5 | 0.0 | 1.4561 |
+| 1 | 55.9 | 0.0 | 1.4676 |
+| 2 | 36.1 | 0.0 | 1.4252 |
+| 3 | 30.9 | 0.0 | 1.4562 |
+| 4 | 24.3 | 39.3 | 1.5081 |
+| mean ± s.d. | 35.7 ± 12.0 | 7.9 ± 17.6 | 1.4626 ± 0.0299 |
+
+## Depletion of selected layouts (Fig. 5)
+
+| Layout | BOL k_inf | k_inf at 50 MWd/kgHM | unity crossing (MWd/kgHM) | Δk_Gd (1e-3) |
+|---|---|---|---|---|
+| DPO | 1.0521 | 0.8361 | 27.00 | 5.52 ± 1.40 |
+| GRPO | 1.0499 | 0.8363 | 26.97 | 6.40 ± 1.82 |
+| GA | 1.0492 | 0.8380 | 27.07 | 7.16 ± 2.09 |
+| REF16 | 1.1675 | 0.8392 | 27.15 | 1.52 ± 1.99 |
+| REF24 | 1.0861 | 0.8365 | 27.12 | 9.00 ± 1.55 |
 
 ## Steerability slopes, bootstrap 95% CI, 10,000 resamples (Fig. 6e)
 

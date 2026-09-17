@@ -38,6 +38,7 @@ C = {
     "GA":         "#009E73",   # bluish green   (unconstrained GA)
     "GA16":       "#CC79A7",   # reddish purple (GA fixed at 16 Gd)
     "RS":         "#4D4D4D",   # dark grey      (informed random search)
+    "URS":        "#E69F00",   # orange         (uninformed full-space random search)
     "NU16":       "#8C564B",   # brown          (NuScale-type 16-Gd reference)
     "NU24":       "#9467BD",   # purple         (NuScale-type 24-Gd reference)
     "NOPEN":      "#000000",   # black          (no-penalty control)
@@ -45,6 +46,7 @@ C = {
     "ref":        "#6E6E6E",   # dotted reference lines
     "seed":       "#B5B5B5",   # thin individual-seed traces
 }
+C["REF16"], C["REF24"] = C["NU16"], C["NU24"]   # depletion-figure aliases
 
 LABEL = {
     "DPO":   "DPO (CPT + SFT)",
@@ -52,6 +54,7 @@ LABEL = {
     "GA":    "GA (unconstrained)",
     "GA16":  "GA (Gd = 16)",
     "RS":    "Informed random search",
+    "URS":   "Uninformed random search",
     "NU16":  "16-Gd symmetric reference",
     "NU24":  "24-Gd symmetric reference",
 }
@@ -218,3 +221,33 @@ def save(fig, stem: str | Path, formats: Sequence[str] = ("pdf", "png")) -> None
         fig.savefig(stem.with_suffix(f".{ext}"))
         print(f"  saved -> {stem.with_suffix('.' + ext)}")
     plt.close(fig)
+
+
+def panel_title(ax, letter: str, title: str, *, x: float = -0.16, fontsize: float = 8.0) -> None:
+    """Bold panel letter plus a short left-aligned title (controls / depletion / ED3 figures)."""
+    ax.set_title(title, loc="left", pad=9, fontweight="normal", fontsize=fontsize)
+    ax.text(x, 1.07, letter, transform=ax.transAxes, weight="bold", fontsize=11, va="bottom")
+
+
+def table_panel(ax, letter: str, title: str, rows, cols, *, widths=None, fontsize: float = 7.0):
+    """Numeric table drawn as a figure panel (replaces a separate manuscript table)."""
+    ax.axis("off")
+    ax.text(-0.018, 1.06, letter, transform=ax.transAxes, weight="bold", fontsize=11, va="bottom")
+    ax.text(0.025, 1.08, title, transform=ax.transAxes, fontsize=8, va="bottom")
+    t = ax.table(cellText=rows, colLabels=cols, cellLoc="center", colWidths=widths, bbox=[0, 0, 1, 0.98])
+    t.auto_set_font_size(False)
+    t.set_fontsize(fontsize)
+    for (r, c), cell in t.get_celld().items():
+        cell.set_edgecolor("white")
+        cell.set_linewidth(0.7)
+        cell.set_facecolor("#E8EDF1" if r == 0 else ("#F3F5F6" if r % 2 else "white"))
+        if r == 0:
+            cell.set_text_props(weight="bold", fontsize=fontsize - 0.1)
+            if any("\n" in col for col in cols):
+                cell.set_height(cell.get_height() * 1.65)
+    return t
+
+
+def mean_sd(values, dec: int = 2) -> str:
+    v = np.asarray(values, dtype=float)
+    return f"{v.mean():.{dec}f} ± {v.std(ddof=1):.{dec}f}"

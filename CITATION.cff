@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "Please cite the accompanying manuscript and this software."
+type: software
+title: "Scientific feedback reveals productive regimes beyond training conventions: software"
+version: 3.0.0
+date-released: 2026-10-12
+authors:
+  - family-names: Lee
+    given-names: Yoon Pyo
+  - family-names: Roy
+    given-names: Samrendra
+  - family-names: Chakraborty
+    given-names: Souvik
+  - family-names: Alam
+    given-names: Syed Bahauddin
+repository-code: "https://github.com/sixticket/reactor_design_optimization"
+url: "https://github.com/sixticket/reactor_design_optimization"
+abstract: >-
+  Software for studying how scientific performance feedback redistributes
+  generative policies beyond training conventions in reactor lattice design
+  and measured chemical reaction-condition selection. Includes experimental
+  controls, current manuscript figure builders and archived-result validation.

@@ -20,3 +20,20 @@ The CSV is a value-preserving worksheet export. No row was imputed, normalized,
 or deduplicated. The repository does not assert a new license over the upstream
 data; users should verify the upstream terms for redistribution and publication.
 
+
+## Restore the exact registered CSV
+
+From the repository's `empirical/` directory (or `code/empirical/` inside the
+extracted archive), run:
+
+```bash
+python -m pip install -r requirements-inputs.txt
+python scripts/fetch_buchwald_hartwig.py
+```
+
+Use `--output /path/to/buchwald_hartwig.csv` to prepare a figure source mirror,
+or `--workbook /path/to/Dreher_and_Doyle_input_data.xlsx` for offline input.
+The exporter uses `openpyxl` cell values and the standard-library CSV writer
+with LF line endings. Both workbook and CSV hashes must match before the file
+is written. No rows or yield values are altered, and the table remains outside
+the code repository and data archive until the user restores it.

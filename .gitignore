@@ -17,6 +17,14 @@ venv/
 *.png
 *.pdf
 
+# Figure 1 source assets required by the manuscript builder
+!paper_figures/figure1/assets/*.png
+!paper_figures/figure1/data/supervised_generation.csv
+
+# Local reproduction outputs
+work/
+paper_figures/figure1/*.pptx
+
 # Trained checkpoints
 final_*/
 *_model/

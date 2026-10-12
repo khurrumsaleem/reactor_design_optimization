@@ -1,23 +1,31 @@
-# ReactorGen
+# Scientific feedback reveals productive regimes beyond training conventions
 
-**Agentic physics-adjudicated constraint discovery in nuclear reactor core
-design.**
+Software accompanying the manuscript by Yoon Pyo Lee, Samrendra Roy, Souvik
+Chakraborty and Syed Bahauddin Alam, submitted to Nature Machine Intelligence.
+The reactor implementation retains the name ReactorGen.
 
-ReactorGen couples a compact pretrained language model (Gemma 3, 270M
-parameters) with the OpenMC Monte Carlo neutron-transport simulator in a
-closed generate-evaluate-update loop, learning to generate
-17 x 17 PWR fuel-assembly layouts that satisfy multi-objective neutronic
-targets ($k_\text{eff}$, $F_q$, $F_{\Delta H}$).  Trained exclusively on
-16-rod lattices, and aligned with either DPO or GRPO against live OpenMC
-feedback with no novelty, diversity, or inventory term in the reward, the
-policy shifts the gadolinium-absorber inventory to 28--35 rods, a region
-absent from its training corpus---a measurable, reward-contingent event we
-term *physics-adjudicated constraint discovery*.
+The study asks whether scientific performance feedback can redirect a
+generative policy trained on a restricted design convention toward productive
+regions beyond that convention. It evaluates two implementations: a Gemma 3
+270M sequence policy with OpenMC reactor-lattice feedback, and a small
+non-language categorical policy with measured Buchwald–Hartwig reaction yields.
+The allowed design space stays fixed; adaptation redistributes probability
+within it. The objective rewards scientific performance without an explicit
+novelty reward or a reward for changing the convention-defining feature.
 
-This repository contains the full training, evaluation, and baseline
-pipeline used to produce the results reported in our manuscript.  All
-scripts run on a single consumer-grade NVIDIA GPU (e.g.\ RTX 3070, 8 GB
-VRAM) with CPU fallback.
+We distinguish candidate availability, learned redistribution and reusable
+search information. The reactor experiments provide the full attribution
+controls, including informed random search and objective removal. The chemistry
+experiments test redistribution with measured feedback and exact policy
+summaries, without a learned yield predictor.
+
+This repository contains training, evaluation and control implementations,
+current figure builders, and an archived-result verifier. Completed trajectories,
+figure source data and final chemistry checkpoints are supplied separately in
+`ScientificFeedback_code_data_v3.zip`. The archive has been prepared for Zenodo;
+a public archive DOI will be added after publication. Large reactor checkpoints
+are not included. The supervised reactor corpus is also available from the
+[ReactorGen dataset on Hugging Face](https://huggingface.co/datasets/Sixticket/ReactorGen-Dataset).
 
 ## Repository layout
 
@@ -34,33 +42,33 @@ ga/                           Genetic-algorithm baselines (constrained / unconst
 nuscale/                      NuScale standard-design references
 eval_prompt_sensitivity/      Prompt-controllability evaluation across all checkpoints
 plot/                         Legacy single-run figure scripts
-figures/                      Manuscript figures (Figs. 2-7, Extended Data) from the archival data
+figures/                      Historical figure and supplementary-analysis implementation
+paper_figures/                Current main-text Figures 1-4 and prompt-sweep SI builders
 oracle/                       Informed (Gd 20-40) and uninformed (Gd 0-264) random-search controls
 no_penalty_control/           DPO with the criticality penalty removed (five matched seeds, resumable)
 depletion/                    Pin-wise depletion of the selected layouts to 50 MWd/kgHM
 generation_yield/             Raw generation validity and constraint satisfaction
-analysis/aggregate_results.py Recomputes every headline number from the archived CSVs
+analysis/aggregate_results.py Historical aggregation of selected experiment endpoints
 analysis/first_passage.py     Inventory first passage, cumulative-best trajectories, layout selection
 analysis/summarize_controls.py Seed-level control summaries and exact tests
 analysis/reevaluation/        2e7-history OpenMC re-evaluation, bootstrap and CI audits
 empirical/                    Buchwald-Hartwig replication on measured reaction yields
-run_all_script/               Master orchestrator (5-seed reproducibility sweep)
+run_all_script/               Five-seed reactor campaign launcher
+validation/                   Standard-library checks of archived manuscript results
 ```
 
 ## Hardware
 
-- **GPU**: NVIDIA RTX 3070 (8 GB VRAM) or comparable.  Larger GPUs reduce
-  the need for gradient accumulation but the codebase runs as-is on 8 GB.
-  Every script selects `cuda` when available and falls back to CPU.  (The
-  supplemental controls reported in the manuscript -- no-penalty seeds 1-4,
-  uninformed random search, generation yield and depletion -- were run on an
-  Apple-silicon workstation with the same code paths; only the device string
-  differs.)
-- **CPU / RAM**: any modern x86-64 desktop is sufficient for the OpenMC
-  simulations that dominate wall-clock time during DPO / GRPO and dataset
-  generation.  Tested on Intel Core i5-12400F (6 cores) with 32 GB RAM.
-- **Disk**: ~50 GB free for raw OpenMC outputs, model checkpoints, and
-  result CSVs across all five seeds.
+Reactor policy training was run with an NVIDIA RTX 3070 (8 GB VRAM), and
+OpenMC evaluation with an Intel Core i5-12400F and 32 GB RAM. Additional controls
+were run on an Apple-silicon workstation. Device selection and interpreter
+configuration should be checked in each training entry point before a new run.
+Plan for approximately 50 GB of working space for full reactor campaigns.
+
+Regenerating the current plots and verifying archived numerical results do not
+require a GPU, OpenMC, policy training or neutron cross-section data. Figure 1
+assembly uses Node.js and `pptxgenjs`. Chemistry reruns use NumPy and PyTorch;
+the registered measured input is restored separately as described below.
 
 ## Setup
 
@@ -82,37 +90,105 @@ run_all_script/               Master orchestrator (5-seed reproducibility sweep)
    export OPENMC_CROSS_SECTIONS=/path/to/cross_sections.xml
    ```
 
-3. **Project root** (optional).  All scripts auto-detect the project root
-   from their own location.  To pin it explicitly:
+3. **Project root** (optional). The campaign launcher accepts an explicit
+   repository location:
    ```bash
    export REACTORGEN_ROOT=/path/to/this/repo
    ```
 
-## Reproducing the manuscript
+## Reproduce current figures from archived results
 
-The full five-seed sweep is orchestrated by a single command:
+Run these commands from the GitHub repository root. Extract
+`ScientificFeedback_code_data_v3.zip` separately and set `ARCHIVE_ROOT` to its
+extracted top-level directory. The archive's `data/source_tree/` mirrors the
+relative input paths used by the current figure builders. Rebuilt outputs go to
+`work/`, outside the archived source tree.
 
 ```bash
-python run_all_script/run_all_script.py
+export ARCHIVE_ROOT=/absolute/path/to/ScientificFeedback_code_data_v3
+python -m pip install -r paper_figures/requirements.txt
+python -m pip install -r empirical/requirements-inputs.txt
+python empirical/scripts/fetch_buchwald_hartwig.py \
+  --output "$ARCHIVE_ROOT/data/source_tree/empirical/data/buchwald_hartwig.csv"
+python paper_figures/build_reactor_figures.py \
+  --source-root "$ARCHIVE_ROOT/data/source_tree" --output-dir work/rebuilt_figures
+python paper_figures/plot_fig4_chemistry.py \
+  --source-root "$ARCHIVE_ROOT/data/source_tree" --output-dir work/rebuilt_figures
+python paper_figures/build_supplementary_prompt_sweep.py \
+  --source-root "$ARCHIVE_ROOT/data/source_tree" --output-dir work/rebuilt_figures
+python paper_figures/build_deduplicated_si_figures.py \
+  --source-dir "$ARCHIVE_ROOT/figures/source_data/supplementary" --output-dir work/rebuilt_figures
 ```
 
-This sequentially executes (with two-task parallelism by default):
+The measured chemistry table is not redistributed. The fetch helper checks both
+the upstream workbook and exported CSV against registered SHA-256 values.
+It restores that external input without changing the completed result logs.
 
-1. Corpus generation -- 10,000 OpenMC-evaluated lattices
-   (~70 hours on the reference hardware; one-time cost).
-2. CPT and SFT stages on each of five random seeds.
-3. DPO single, DPO multi, GRPO single, GRPO multi alignment for both
-   CPT+SFT and SFT-only base checkpoints (twenty 1000-step runs total).
-4. Genetic-algorithm baselines (with and without the 16-Gd inventory
-   constraint).
-5. Prompt-sensitivity evaluation across all ten trained checkpoints.
+| Current manuscript figure | Repository entry point | Archived input |
+|---|---|---|
+| Fig. 1: two scientific settings and attribution overview | `paper_figures/figure1/make_fig1.js` | Packaged assets and chart data beside the builder |
+| Fig. 2: reactor redistribution and useful generation | `paper_figures/build_reactor_figures.py` | `data/source_tree/` |
+| Fig. 3: reactor objective intervention and search controls | `paper_figures/build_reactor_figures.py` | `data/source_tree/` |
+| Fig. 4: chemistry redistribution and yield error | `paper_figures/plot_fig4_chemistry.py` | `data/source_tree/` and restored measured input |
+| SI convergence/layouts and first-passage/count panels | `paper_figures/build_deduplicated_si_figures.py` | `figures/source_data/supplementary/` |
+| SI initialization ablation | `figures/fig5_cpt.py` | `data/` via `DATA_ROOT` |
+| SI prompt sweep | `paper_figures/build_supplementary_prompt_sweep.py` | `data/source_tree/` |
+| SI depletion | `figures/fig_depletion.py` | `data/` via `DATA_ROOT` |
 
-End-to-end wall time on the reference hardware is approximately seven
-days.  Each task is resumable: the runner skips any seed/method
-combination whose `.done` marker already exists.
+Figure 1 can be assembled from its packaged assets without running Blender or
+scientific simulations:
 
-To reproduce a single component manually, see the script-specific entry
-points in each subdirectory, e.g.:
+```bash
+npm install --prefix work/figure1-node pptxgenjs
+PPTXGENJS="$PWD/work/figure1-node/node_modules/pptxgenjs" \
+  node paper_figures/figure1/make_fig1.js \
+  --output work/rebuilt_figures/fig1_concept.pptx
+```
+
+Export the PPTX to PDF with PowerPoint or LibreOffice. The archive includes the
+final manuscript PDFs in `figures/main/` and `figures/supplementary/` and the
+editable Fig. 1 PPTX in `figures/main/`. Fonts, library versions and PDF export
+applications can affect rebuilt file bytes.
+
+The two remaining SI plots use the earlier plotting modules:
+
+```bash
+DATA_ROOT="$ARCHIVE_ROOT/data" python figures/fig5_cpt.py
+DATA_ROOT="$ARCHIVE_ROOT/data" python figures/fig_depletion.py
+```
+
+Those entry points write PDFs and PNGs beside their scripts. The other filenames
+in `figures/` retain historical numbering; the table above gives the current
+manuscript mapping.
+
+## Verify the archived numerical results
+
+The verifier requires only Python's standard library. Run it from the repository
+root, with the same `ARCHIVE_ROOT` as above:
+
+```bash
+mkdir -p work
+python validation/verify_manuscript_results.py \
+  --package-root "$ARCHIVE_ROOT" --output "$PWD/work/manuscript_validation.json"
+```
+
+It checks the fixed-convention corpus, all 40 reactor alignment traces,
+unselected-generation and random-search target incidence, all five
+objective-removal runs, independent high-statistics evaluations, and both
+chemistry schedules. It aggregates archived exact-enumeration metrics and checks
+checkpoint file inclusion; it does not deserialize weights or independently
+re-enumerate the neural policies. A failed assertion or missing required input
+returns a nonzero exit status.
+
+## Re-running original campaigns
+
+Full reactor reproduction requires a training environment, OpenMC and the
+ENDF/B-VII.1 library. Generate the corpus with
+`data_generation/data_generation_10K.py`, or use the archived corpus. Run base
+training before alignment for each initialization and seed; run search controls
+and supplementary evaluations separately from the training campaigns.
+
+Representative entry points are:
 
 ```bash
 python training/base/cpt/cpt.py --seed 0
@@ -120,6 +196,35 @@ python training/base/sft/sft.py --seed 0
 python training/dpo/single_target/single_dpo.py --seed 0
 python training/grpo/single/single.py --seed 0
 ```
+
+`only_sft/` contains the matched initialization ablation. The eight alignment
+variants span DPO/GRPO, single/multi-target feedback and CPT+SFT/SFT-only
+initialization, each with five seeds. Each alignment run uses 2,000 scientific
+evaluations. Corpus generation, controls, prompt evaluation and depletion have
+separate entry points.
+
+`run_all_script/run_all_script.py` is the legacy campaign launcher for base
+training, alignment and two genetic-algorithm baselines. It retains a local
+OpenMC interpreter path and submits stages to a shared worker queue without
+waiting for prerequisite stages to finish. For a fresh campaign, use the
+individual entry points in stage order as shown above; the legacy launcher
+requires adapting its environment and scheduling first. Its `.done` markers
+skip completed tasks. It does not generate the corpus or run supplementary
+controls and evaluations.
+
+For measured chemistry, install `empirical/requirements.txt`, restore the
+registered table, then run both schedules with an explicit input path:
+
+```bash
+python -m pip install -r empirical/requirements.txt
+python empirical/scripts/fetch_buchwald_hartwig.py
+python empirical/scripts/run_full_pipeline.py \
+  --data "$PWD/empirical/data/buchwald_hartwig.csv" --resume
+```
+
+The pipeline executes `full_single.json` and `full.json`, each covering two
+initialization arms and five seeds. See `empirical/README.md` for the categorical
+policy, registered budgets and exact-enumeration outputs.
 
 ## Outputs
 
@@ -132,13 +237,13 @@ loaded by the downstream alignment stages.
 
 ## Controls and yield analysis
 
-Three additional experiment groups support the revised manuscript. All of them
-reuse the OpenMC settings, fitness definition, and 2,000-evaluation budget of
-the main campaigns.
+The reactor attribution controls compare availability, redistribution and
+reusable search information under matched evaluation budgets. Additional
+validation assesses objective direction, transport precision and depletion.
 
 - `oracle/` -- **Informed random-search oracle.** Uniform random sampling with
-  the Gd inventory drawn from the interval [20, 40], the region occupied by
-  the aligned policies, evaluated under identical OpenMC settings and budget.
+  the Gd inventory drawn from the interval [20, 40], a bracket informed by
+  alignment, evaluated under identical OpenMC settings and budget.
   Five independent sampling seeds
   (`python oracle/run_informed_random_search.py`); best-of-budget composite
   fitness across seeds gives the oracle value in the manuscript.
@@ -174,10 +279,10 @@ the main campaigns.
   fraction and pre-correction guide-tube violations, and evaluates a fixed
   subsample with OpenMC for the feasible fraction
   (`python generation_yield/run_generation_yield.py`).
-- `analysis/aggregate_results.py` -- recomputes the headline numbers reported
-  in the manuscript (fitness decomposition, matched-GA comparison and
-  Mann-Whitney tests, oracle statistics, control convergence) from the raw
-  CSVs in the archival data package.
+- `analysis/aggregate_results.py` -- preserves earlier endpoint aggregation
+  (fitness decomposition, matched-GA comparison and Mann-Whitney tests,
+  informed-search statistics and control convergence). Use
+  `validation/verify_manuscript_results.py` for the current manuscript checks.
 
 ## Re-evaluation, empirical replication, and figures
 
@@ -190,16 +295,18 @@ the main campaigns.
 - `empirical/` -- repeats the CPT/SFT/DPO/GRPO protocol with a small
   categorical policy on the measured Buchwald-Hartwig reaction-yield table of
   Ahneman et al. (Science 2018); the reward is a lookup of measured yields.
-  The data table is not redistributed; `empirical/data/SOURCE.md` records its
-  origin and checksum (`cd empirical && python scripts/run_full_pipeline.py`).
-- `figures/` -- regenerates all manuscript figures from the archival data
-  package (`DATA_ROOT=/path/to/data python figures/run_all.py`); see
-  `figures/README.md` for the script-to-figure mapping.
+  The data table is restored separately; `empirical/data/SOURCE.md` records
+  its origin and checksum. Preparation and rerun commands are given above.
+- `paper_figures/` -- reproduces current Figures 1--4 and the supplementary
+  prompt sweep from completed records.
+- `figures/` -- preserves historical artwork and supplementary analyses;
+  filenames retain their earlier numbering and are not the current main-text
+  figure mapping. See `figures/README.md`.
 
-## Archival data layout expected by the analysis and figure scripts
+## Companion archive data layout
 
 ```
-data/
+ScientificFeedback_code_data_v3/data/
   corpus/               reactor_10k_final.csv
   alignment/            DPO / GRPO single and multi-target trajectories, 5 seeds
   alignment_sft_only/   same, SFT-only initialization
@@ -210,15 +317,22 @@ data/
   analysis/             first_passage_per_seed.csv and the control summaries (regenerable)
   prompt_sensitivity/   prompt_sensitivity_results.csv
   reevaluation/         2e7-history re-evaluation, trajectory CI, steerability bootstrap
-  empirical/            Buchwald-Hartwig replication outputs
+  empirical/            Buchwald-Hartwig outputs and final policy checkpoints
+  generation_yield/     Corrected unselected samples and OpenMC subsample
+  source_tree/          Input mirror used by current paper_figures/ builders
 ```
 
 ## Citation
 
-Lee, Y. P., Roy, S., Chakraborty, S. & Alam, S. B. ReactorGen: Agentic
-Physics-Adjudicated Constraint Discovery (manuscript submitted to Nature
-Machine Intelligence, 2026). Data and code archive:
-https://doi.org/10.5281/zenodo.22230862.
+Lee, Y. P., Roy, S., Chakraborty, S. & Alam, S. B. *Scientific feedback reveals
+productive regimes beyond training conventions* (revised manuscript submitted
+to Nature Machine Intelligence, 2026).
+
+Development repository: https://github.com/sixticket/reactor_design_optimization.
+Software citation metadata is provided in [`CITATION.cff`](CITATION.cff).
+The companion archive has separate citation metadata. No archive DOI is claimed
+until its Zenodo record is published.
+
 
 ## Contact
 
@@ -227,5 +341,7 @@ a GitHub issue or contact Yoonpyo Lee at <yoonpyo2@illinois.edu>.
 
 ## License
 
-Released for research and academic use.  Please cite the accompanying
-manuscript when citation information becomes available.
+The existing distribution statement is research and academic use. Please cite
+the accompanying manuscript and software. This repository does not currently
+provide a formal software license; the companion archive's data license does
+not assign a software license to this code.

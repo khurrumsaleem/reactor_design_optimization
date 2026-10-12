@@ -1,0 +1,2 @@
+# Restore the registered chemistry CSV from its upstream XLSX workbook.
+openpyxl>=3.1

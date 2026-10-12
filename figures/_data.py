@@ -1,9 +1,8 @@
 """Data loaders for the ReactorGen figures.
 
-All inputs are read from the archival data package layout (Zenodo record
-10.5281/zenodo.22230862, directory ``data/``).  Set ``DATA_ROOT`` to that
-directory; by default the loader assumes the archive layout in which
-``code/`` and ``data/`` are siblings (``<repo>/../data``).
+All inputs are read from the separately distributed archive directory ``data/``.
+From a GitHub checkout, set ``DATA_ROOT=/path/to/ScientificFeedback_code_data_v3/data``.
+The default supports the archive layout, where ``code/`` and ``data/`` are siblings.
 
 data/
   corpus/                 reactor_10k_final.csv

@@ -1,0 +1,8 @@
+# Rebuild archived-result Figures 2-4 and the supplementary prompt sweep.
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+scipy>=1.10
+# Compose the current SI panels from archived vector PDFs.
+pypdf>=5.0
+reportlab>=4.0

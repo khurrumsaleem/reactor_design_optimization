@@ -1,0 +1,66 @@
+{
+ "n": 5000,
+ "n_per_seed": 1000,
+ "checkpoints": [
+  "/Users/yoon/project/UIUC/reactor_genome/after/training/base/sft/final_sft_model_seed0",
+  "/Users/yoon/project/UIUC/reactor_genome/after/training/base/sft/final_sft_model_seed1",
+  "/Users/yoon/project/UIUC/reactor_genome/after/training/base/sft/final_sft_model_seed2",
+  "/Users/yoon/project/UIUC/reactor_genome/after/training/base/sft/final_sft_model_seed3",
+  "/Users/yoon/project/UIUC/reactor_genome/after/training/base/sft/final_sft_model_seed4"
+ ],
+ "prompt": "Reactor Core Design (k=1.05000, fq=1.0000, fdh=1.0000):\n",
+ "decoding": "temperature 1.0, 400-token cap, EOS, top-k 64 and top-p 0.95 from generation_config.json",
+ "hist": {
+  "13": 8,
+  "14": 94,
+  "15": 374,
+  "16": 4429,
+  "17": 91,
+  "18": 4
+ },
+ "mean": 15.9026,
+ "sd": 0.41993869755232177,
+ "exactly16": 0.8858,
+ "ge20": 0.0,
+ "in28_35": 0.0,
+ "raw_valid": 1.0,
+ "gt_viol": 0.0,
+ "per_seed": {
+  "0": {
+   "n": 1000,
+   "exactly16": 0.995,
+   "ge20": 0.0,
+   "in28_35": 0.0,
+   "mean": 15.997
+  },
+  "1": {
+   "n": 1000,
+   "exactly16": 0.998,
+   "ge20": 0.0,
+   "in28_35": 0.0,
+   "mean": 15.998
+  },
+  "2": {
+   "n": 1000,
+   "exactly16": 0.997,
+   "ge20": 0.0,
+   "in28_35": 0.0,
+   "mean": 15.997
+  },
+  "3": {
+   "n": 1000,
+   "exactly16": 0.448,
+   "ge20": 0.0,
+   "in28_35": 0.0,
+   "mean": 15.53
+  },
+  "4": {
+   "n": 1000,
+   "exactly16": 0.991,
+   "ge20": 0.0,
+   "in28_35": 0.0,
+   "mean": 15.991
+  }
+ },
+ "minutes": 29.329755719502767
+}

@@ -13,16 +13,18 @@ For each aryl-halide task, the empirical action space is the set of measured
 from that set. Consequently, a sampled trajectory always identifies one and only
 one experimental row.
 
-## Restricted support
+## Task-specific training convention
 
 Let `a(t)` be the anchor ligand for aryl-halide task `t`, defined as the ligand
 whose sorted integer ID equals `t mod 4`. CPT and SFT use only rows satisfying
 `ligand = a(t)`. This supplies approximately 66 measured reactions per task and
 uses every ligand token across tasks. Online DPO/GRPO use the complete measured
-catalog. A reaction is outside training support when `ligand != a(t)`.
+catalog. A reaction is outside the task-specific training corpus when
+`ligand != a(t)`. All four ligand identities are known globally, and the allowed
+action space and prefix masks remain fixed throughout training and adaptation.
 
 The anchor rule is outcome-independent: it never examines yield. This prevents
-the support split from being chosen to manufacture a favorable result.
+the training split from being chosen to manufacture a favorable result.
 
 ## Policy and training stages
 
@@ -31,9 +33,9 @@ aryl-halide task and either an unconditional CPT token or a requested yield.
 It then generates ligand, additive, and base. Each next-token softmax is masked
 by the empirical prefix trie.
 
-- **CPT:** maximum likelihood over all restricted-support reactions using the
+- **CPT:** maximum likelihood over all reactions in the restricted training corpus using the
   unconditional target token.
-- **SFT:** maximum likelihood of the `k` restricted-support reactions closest to
+- **SFT:** maximum likelihood of the `k` training-corpus reactions closest to
   each requested yield, per task.
 - **CPT+SFT arm:** CPT followed by SFT.
 - **SFT-only arm:** SFT from the same random initialization scheme.
@@ -72,21 +74,24 @@ The catalog is small enough to enumerate. Metrics therefore use exact policy
 probabilities rather than Monte Carlo estimates:
 
 - expected reward and absolute target error;
-- probability mass outside restricted support;
+- probability mass on task–ligand combinations excluded from training;
 - ligand entropy;
 - best full-catalog and restricted-catalog attainable errors;
 - DPO–GRPO Jensen–Shannon divergence for the same seed and initialization arm.
 
 Algorithm–ligand NMI is reported only as a secondary coarse summary. It can be
 near zero even when policies differ within a ligand, and it can be high when
-ligand marginals differ without better target matching. JSD and support mass are
+ligand marginals differ without better target matching. JSD and off-corpus probability mass are
 the more direct differentiation endpoints.
 
 ## Claims this experiment can and cannot support
 
-A positive result supports the claim that ReactorGen-style policy
-differentiation and support expansion are not unique to a transport simulator:
-they also occur under feedback from a table of physical experiments.
+The completed study evaluates policy redistribution toward productive regions
+beyond task-specific training conventions using feedback from measured physical
+experiments. It therefore tests the same distributional mechanism as the
+lattice setting in a different domain and policy architecture. The off-corpus
+mass measures redistribution within a fixed allowed catalog; it does not
+measure expansion of the policy's mathematical support or the allowed space.
 
 It does not establish online laboratory autonomy, extrapolation to unmeasured
 chemistry, or discovery of a previously unperformed reaction. The policy is
